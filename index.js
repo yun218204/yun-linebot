@@ -24,16 +24,26 @@ app.post("/webhook", middleware(config), (req, res) => {
     });
 });
 
-function handleEvent(event) {
-  console.log("📩 處理事件：", JSON.stringify(event, null, 2));
-  if (event.type !== "message" || event.message.type !== "text") {
-    return Promise.resolve(null);
+async function handleEvent(event) {
+  console.log("📩 收到事件：", JSON.stringify(event, null, 2));
+
+  try {
+    if (event.type !== "message" || event.message.type !== "text") {
+      console.log("🔕 非文字訊息，略過");
+      return Promise.resolve(null);
+    }
+
+    await client.replyMessage(event.replyToken, {
+      type: "text",
+      text: `你說了：${event.message.text}`,
+    });
+
+    console.log("✅ 成功回覆使用者");
+  } catch (error) {
+    console.error("❌ 回覆時發生錯誤：", error);
   }
 
-  return client.replyMessage(event.replyToken, {
-    type: "text",
-    text: `你說了：${event.message.text}`,
-  });
+  return Promise.resolve(null);
 }
 
 const port = process.env.PORT || 3000;
