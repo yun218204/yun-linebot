@@ -2,14 +2,16 @@ const express = require("express");
 const { Client, middleware } = require("@line/bot-sdk");
 
 const config = {
-  channelAccessToken: "process.env.CHANNEL_ACCESS_TOKEN",
-  channelSecret: "process.env.CHANNEL_SECRET",
+  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.CHANNEL_SECRET,
 };
 
 const app = express();
 const client = new Client(config);
 
 // ✅ 加 log 檢查是否真的進來
+
+app.use(express.json());
 app.post("/webhook", middleware(config), (req, res) => {
   console.log("✅ 收到 LINE Webhook：", JSON.stringify(req.body, null, 2));
   Promise.all(req.body.events.map(handleEvent)).then((result) =>
