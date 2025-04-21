@@ -12,7 +12,7 @@ const client = new Client(config);
 
 // ✅ 加 log 檢查是否真的進來
 
-app.use(express.json());
+//app.use(express.json());
 app.post("/webhook", middleware(config), (req, res) => {
   console.log("✅ 收到 webhook：", JSON.stringify(req.body, null, 2));
   Promise.all(req.body.events.map(handleEvent))
