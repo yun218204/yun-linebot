@@ -13,10 +13,13 @@ const client = new Client(config);
 
 app.use(express.json());
 app.post("/webhook", middleware(config), (req, res) => {
-  console.log("✅ 收到 LINE Webhook：", JSON.stringify(req.body, null, 2));
-  Promise.all(req.body.events.map(handleEvent)).then((result) =>
-    res.json(result)
-  );
+  console.log("✅ 收到 webhook：", JSON.stringify(req.body, null, 2));
+  Promise.all(req.body.events.map(handleEvent))
+    .then((result) => res.json(result))
+    .catch((err) => {
+      console.error("❌ webhook 發生錯誤：", err);
+      res.status(500).end();
+    });
 });
 
 function handleEvent(event) {
@@ -31,6 +34,7 @@ function handleEvent(event) {
   });
 }
 
-app.listen(3000, () => {
-  console.log("🚀 Bot 已啟動在 http://localhost:3000");
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`🚀 Bot 已啟動在 port ${port}`);
 });
