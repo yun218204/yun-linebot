@@ -26,13 +26,11 @@ app.post("/webhook", middleware(config), (req, res) => {
 async function handleEvent(event) {
   console.log("📩 收到事件：", JSON.stringify(event, null, 2));
 
-  // 檢查是否為文字訊息，否則略過
   if (event.type !== "message" || event.message.type !== "text") {
     console.log("🔕 非文字訊息，略過");
     return Promise.resolve(null);
   }
 
-  // 檢查是否有 replyToken
   if (
     !event.replyToken ||
     event.replyToken === "00000000000000000000000000000000"
@@ -41,11 +39,27 @@ async function handleEvent(event) {
     return Promise.resolve(null);
   }
 
-  // 回覆訊息
+  const userText = event.message.text.trim().toLowerCase(); // 使用者輸入轉小寫
+
+  let reply = "你說了：" + event.message.text;
+
+  // ✅ 加入關鍵字判斷邏輯
+  if (userText.includes("天氣")) {
+    reply = "台中現在 28 度，出門記得防曬喔 🌞";
+  } else if (userText === "你好") {
+    reply = "你好啊～我是慈昀的小助理！";
+  } else if (userText.includes("幹")) {
+    reply = "嘴巴放乾淨一點！😠";
+  } else if (userText.includes("早安")) {
+    reply = "早安安安安 ☀️ 今天也要加油喔";
+  } else if (userText === "你誰") {
+    reply = "我是慈昀機器人，不是你女友 🙃";
+  }
+
   try {
     await client.replyMessage(event.replyToken, {
       type: "text",
-      text: `你說了：${event.message.text}`,
+      text: reply,
     });
     console.log("✅ 成功回覆使用者");
   } catch (error) {
