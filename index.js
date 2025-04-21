@@ -5,6 +5,8 @@ const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
 };
+console.log("🧪 TOKEN:", process.env.CHANNEL_ACCESS_TOKEN);
+console.log("🧪 SECRET:", process.env.CHANNEL_SECRET);
 
 const app = express();
 const client = new Client(config);
