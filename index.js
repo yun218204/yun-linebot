@@ -26,7 +26,16 @@ app.post("/webhook", middleware(config), (req, res) => {
 
 async function handleEvent(event) {
   console.log("收到事件：", JSON.stringify(event, null, 2));
-  // ✅ 查詢位置訊息 → Google Place API 查餐廳
+
+  // 避免回覆測試事件
+  if (
+    !event.replyToken ||
+    event.replyToken === "00000000000000000000000000000000"
+  ) {
+    return Promise.resolve(null);
+  }
+
+  // ✅ 傳送「定位」查附近餐廳
   if (event.message.type === "location") {
     const lat = event.message.latitude;
     const lng = event.message.longitude;
@@ -45,41 +54,99 @@ async function handleEvent(event) {
         });
       }
 
-      const topResults = places.slice(0, 5); // 顯示前5筆
-      const formatted = topResults
-        .map((place, i) => `${i + 1}. ${place.name}（${place.vicinity}）`)
-        .join("\n");
+      const topResults = places.slice(0, 3);
+      const bubbles = topResults.map((place) => {
+        const name = place.name;
+        const address = place.vicinity;
+        const photoRef = place.photos?.[0]?.photo_reference;
+        const photoUrl = photoRef
+          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${apiKey}`
+          : "https://i.imgur.com/0W9cLrn.jpeg"; // 沒圖用預設圖
+
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          name + " " + address
+        )}`;
+
+        return {
+          type: "bubble",
+          hero: {
+            type: "image",
+            url: photoUrl,
+            size: "full",
+            aspectRatio: "20:13",
+            aspectMode: "cover",
+            action: {
+              type: "uri",
+              uri: mapsUrl,
+            },
+          },
+          body: {
+            type: "box",
+            layout: "vertical",
+            contents: [
+              {
+                type: "text",
+                text: name,
+                weight: "bold",
+                size: "md",
+                wrap: true,
+              },
+              {
+                type: "text",
+                text: address,
+                size: "sm",
+                color: "#666666",
+                wrap: true,
+              },
+            ],
+          },
+          footer: {
+            type: "box",
+            layout: "vertical",
+            spacing: "sm",
+            contents: [
+              {
+                type: "button",
+                style: "link",
+                height: "sm",
+                action: {
+                  type: "uri",
+                  label: "開啟地圖",
+                  uri: mapsUrl,
+                },
+              },
+            ],
+            flex: 0,
+          },
+        };
+      });
 
       return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: `📍 附近餐廳推薦：\n${formatted}`,
+        type: "flex",
+        altText: "附近餐廳推薦",
+        contents: {
+          type: "carousel",
+          contents: bubbles,
+        },
       });
     } catch (error) {
-      console.error("🔴 Google Place API 查詢失敗：", error.message);
+      console.error("🔴 查詢 Google Place 餐廳錯誤：", error);
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "查詢附近餐廳時發生錯誤，請稍後再試 🙏",
+        text: "無法查詢附近餐廳，請稍後再試。",
       });
     }
   }
+
+  // ✅ 關鍵字文字訊息處理
   if (event.type !== "message" || event.message.type !== "text") {
     console.log("非文字訊息，略過");
     return Promise.resolve(null);
   }
 
-  if (
-    !event.replyToken ||
-    event.replyToken === "00000000000000000000000000000000"
-  ) {
-    console.log(" 測試事件，略過回覆");
-    return Promise.resolve(null);
-  }
+  const userText = event.message.text.trim().toLowerCase();
+  let reply = "我不知道什麼是 " + event.message.text;
 
-  const userText = event.message.text.trim().toLowerCase(); // 使用者輸入轉小寫
-
-  let reply = "我不知道什麼是" + event.message.text;
-
-  // 關鍵字判斷邏輯
   if (userText.includes("豆花")) {
     return client.replyMessage(event.replyToken, {
       type: "image",
@@ -87,23 +154,23 @@ async function handleEvent(event) {
       previewImageUrl: "https://i.imgur.com/0W9cLrn.jpeg",
     });
   } else if (userText.includes("天氣")) {
-    reply = "今天台中天氣28度!記得防曬";
+    reply = "今天台中天氣28度！記得防曬☀️";
   } else if (userText === "你好") {
-    reply = "你好呀我是慈昀的小助理";
+    reply = "你好呀，我是慈昀的小助理 🤖";
   } else if (userText.includes("早安")) {
-    reply = "早安呀 記得吃早餐";
+    reply = "早安呀 ☀️ 記得吃早餐！";
   } else if (userText.includes("晚安")) {
-    reply = "晚安呀 我也要睡囉 祝好夢";
+    reply = "晚安呀 🌙 祝你有個好夢";
   }
 
   try {
     await client.replyMessage(event.replyToken, {
       type: "text",
-      text: reply, //上面的
+      text: reply,
     });
     console.log("成功回覆使用者");
   } catch (error) {
-    console.error(" 回覆訊息失敗：", error);
+    console.error("回覆訊息失敗：", error);
     return Promise.reject(error);
   }
 
