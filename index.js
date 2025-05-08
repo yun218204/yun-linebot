@@ -26,7 +26,42 @@ app.post("/webhook", middleware(config), (req, res) => {
 
 async function handleEvent(event) {
   console.log("收到事件：", JSON.stringify(event, null, 2));
+  // ✅ 查詢位置訊息 → Google Place API 查餐廳
+  if (event.message.type === "location") {
+    const lat = event.message.latitude;
+    const lng = event.message.longitude;
+    const apiKey = process.env.GOOGLE_PLACE_API_KEY;
 
+    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=1000&type=restaurant&language=zh-TW&key=${apiKey}`;
+
+    try {
+      const response = await axios.get(url);
+      const places = response.data.results;
+
+      if (!places || places.length === 0) {
+        return client.replyMessage(event.replyToken, {
+          type: "text",
+          text: "附近找不到餐廳 😢",
+        });
+      }
+
+      const topResults = places.slice(0, 5); // 顯示前5筆
+      const formatted = topResults
+        .map((place, i) => `${i + 1}. ${place.name}（${place.vicinity}）`)
+        .join("\n");
+
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: `📍 附近餐廳推薦：\n${formatted}`,
+      });
+    } catch (error) {
+      console.error("🔴 Google Place API 查詢失敗：", error.message);
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "查詢附近餐廳時發生錯誤，請稍後再試 🙏",
+      });
+    }
+  }
   if (event.type !== "message" || event.message.type !== "text") {
     console.log("非文字訊息，略過");
     return Promise.resolve(null);
@@ -73,43 +108,6 @@ async function handleEvent(event) {
   }
 
   return Promise.resolve(null);
-
-  //美食api
-  if (event.message.type === "location") {
-    const lat = event.message.latitude;
-    const lng = event.message.longitude;
-
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=1000&type=restaurant&language=zh-TW&key=${apiKey}`;
-
-    try {
-      const res = await axios.get(url);
-      const places = res.data.results;
-
-      if (places.length === 0) {
-        return client.replyMessage(event.replyToken, {
-          type: "text",
-          text: "附近找不到餐廳 😢",
-        });
-      }
-
-      const resultText = places
-        .slice(0, 3)
-        .map((place, i) => `${i + 1}. ${place.name}`)
-        .join("\n");
-
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: `📍 附近餐廳推薦：\n${resultText}`,
-      });
-    } catch (error) {
-      console.error("🔴 餐廳查詢失敗", error);
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "無法查詢附近餐廳，請稍後再試。",
-      });
-    }
-  }
 }
 
 const port = process.env.PORT || 3000;
