@@ -54,7 +54,7 @@ async function handleEvent(event) {
         });
       }
 
-      const topResults = places.slice(0, 3);
+      const topResults = places.slice(0, 8);
       const bubbles = topResults.map((place) => {
         const name = place.name;
         const address = place.vicinity;
