@@ -1,4 +1,7 @@
 const express = require("express");
+const axios = require("axios");
+require("dotenv").config();
+
 const { Client, middleware } = require("@line/bot-sdk");
 console.log("🧪 TOKEN:", process.env.CHANNEL_ACCESS_TOKEN);
 console.log("🧪 SECRET:", process.env.CHANNEL_SECRET);
@@ -70,6 +73,43 @@ async function handleEvent(event) {
   }
 
   return Promise.resolve(null);
+
+  //美食api
+  if (event.message.type === "location") {
+    const lat = event.message.latitude;
+    const lng = event.message.longitude;
+
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=1000&type=restaurant&language=zh-TW&key=${apiKey}`;
+
+    try {
+      const res = await axios.get(url);
+      const places = res.data.results;
+
+      if (places.length === 0) {
+        return client.replyMessage(event.replyToken, {
+          type: "text",
+          text: "附近找不到餐廳 😢",
+        });
+      }
+
+      const resultText = places
+        .slice(0, 3)
+        .map((place, i) => `${i + 1}. ${place.name}`)
+        .join("\n");
+
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: `📍 附近餐廳推薦：\n${resultText}`,
+      });
+    } catch (error) {
+      console.error("🔴 餐廳查詢失敗", error);
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "無法查詢附近餐廳，請稍後再試。",
+      });
+    }
+  }
 }
 
 const port = process.env.PORT || 3000;
