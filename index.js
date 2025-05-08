@@ -61,7 +61,7 @@ async function handleEvent(event) {
         const photoRef = place.photos?.[0]?.photo_reference;
         const photoUrl = photoRef
           ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${apiKey}`
-          : "https://i.imgur.com/0W9cLrn.jpeg"; // 沒圖用預設圖
+          : "https://i.imgur.com/vNMMLEl.jpg"; // 沒圖用預設圖
 
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
           name + " " + address
