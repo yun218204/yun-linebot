@@ -83,10 +83,72 @@ async function handleEvent(event) {
       const weather = data.weather[0].description;
       const temp = data.main.temp;
       const feelsLike = data.main.feels_like;
+      const icon = data.weather[0].icon;
+      const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
+
+      let suggestion = "";
+      if (weather.includes("雨")) {
+        suggestion = "建議攜帶雨具 ☔️";
+      } else if (temp >= 30) {
+        suggestion = "注意防曬補水 🧴💧";
+      } else if (temp <= 15) {
+        suggestion = "天氣寒冷，注意保暖 🧣";
+      } else {
+        suggestion = "天氣舒適，祝您有美好的一天！🌤";
+      }
 
       return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: `📍 位置：${locationName}\n☁️ 天氣：${weather}\n🌡️ 氣溫：${temp}°C\n🥵 體感：${feelsLike}°C`,
+        type: "flex",
+        altText: "目前天氣資訊",
+        contents: {
+          type: "bubble",
+          hero: {
+            type: "image",
+            url: iconUrl,
+            size: "full",
+            aspectRatio: "20:13",
+            aspectMode: "cover",
+          },
+          body: {
+            type: "box",
+            layout: "vertical",
+            spacing: "sm",
+            contents: [
+              {
+                type: "text",
+                text: `📍 ${locationName}`,
+                weight: "bold",
+                size: "lg",
+                wrap: true,
+              },
+              {
+                type: "text",
+                text: `☁️ 天氣：${weather}`,
+                size: "md",
+                wrap: true,
+              },
+              {
+                type: "text",
+                text: `🌡️ 氣溫：${temp}°C / 體感：${feelsLike}°C`,
+                size: "sm",
+                color: "#555555",
+                wrap: true,
+              },
+              {
+                type: "separator",
+                margin: "md",
+              },
+              {
+                type: "text",
+                text: `💡 ${suggestion}`,
+                size: "sm",
+                color: "#1DB446",
+                wrap: true,
+                margin: "md",
+              },
+            ],
+          },
+        },
       });
     }
 
