@@ -42,7 +42,14 @@ async function handleEvent(event) {
     const lat = event.message.latitude;
     const lng = event.message.longitude;
     const userId = event.source.userId;
-    const category = userCategoryMap[userId] || "restaurant"; // 預設查餐廳
+    const category = userCategoryMap[userId];
+
+    if (!category) {
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "請先輸入要查什麼類型（例如：餐廳、飲料店、加油站），再傳定位唷 📍",
+      });
+    }
     const apiKey = process.env.GOOGLE_PLACE_API_KEY;
 
     const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=1000&type=${category}&language=zh-TW&key=${apiKey}`;
