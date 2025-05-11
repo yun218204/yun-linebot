@@ -1,4 +1,3 @@
-// createRichMenu.js
 const fs = require("fs");
 const { Client } = require("@line/bot-sdk");
 require("dotenv").config();
@@ -9,22 +8,37 @@ const client = new Client({
 
 async function setupRichMenu() {
   const richMenu = {
-    size: { width: 2500, height: 843 },
+    size: { width: 2500, height: 1686 }, // 高度改為 1686
     selected: true,
     name: "主選單",
     chatBarText: "請選擇查詢類型",
     areas: [
+      // 第一排
       {
         bounds: { x: 0, y: 0, width: 833, height: 843 },
         action: { type: "message", text: "餐廳" },
       },
       {
         bounds: { x: 834, y: 0, width: 833, height: 843 },
-        action: { type: "message", text: "飲料店" },
+        action: { type: "message", text: "超商" },
       },
       {
         bounds: { x: 1667, y: 0, width: 833, height: 843 },
         action: { type: "message", text: "加油站" },
+      },
+
+      // 第二排
+      {
+        bounds: { x: 0, y: 843, width: 833, height: 843 },
+        action: { type: "message", text: "景點" },
+      },
+      {
+        bounds: { x: 834, y: 843, width: 833, height: 843 },
+        action: { type: "message", text: "藥局" },
+      },
+      {
+        bounds: { x: 1667, y: 843, width: 833, height: 843 },
+        action: { type: "message", text: "天氣" },
       },
     ],
   };
@@ -33,7 +47,7 @@ async function setupRichMenu() {
     const richMenuId = await client.createRichMenu(richMenu);
     console.log("✅ Rich Menu created:", richMenuId);
 
-    const imageBuffer = fs.readFileSync("menu.png"); // 請準備好圖片
+    const imageBuffer = fs.readFileSync("menu.png"); // 確保你的圖為 2500x1686
     await client.setRichMenuImage(richMenuId, imageBuffer, "image/png");
 
     await client.setDefaultRichMenu(richMenuId);
