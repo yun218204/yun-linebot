@@ -28,12 +28,6 @@ async function handleEvent(event) {
   // 用戶文字訊息
   if (event.type === "message" && event.message.type === "text") {
     const text = event.message.text;
-    if (text.includes("羞辱我")) {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "射進你比比裡",
-      });
-    }
 
     if (text === "餐廳") {
       userCategoryMap[userId] = ["restaurant", "cafe"];
