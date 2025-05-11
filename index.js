@@ -1,5 +1,7 @@
 const express = require("express");
 const axios = require("axios");
+const userCategoryMap = {}; // 使用者選擇查詢類型
+
 require("dotenv").config();
 
 const { Client, middleware } = require("@line/bot-sdk");
@@ -34,14 +36,40 @@ async function handleEvent(event) {
   ) {
     return Promise.resolve(null);
   }
+  // 判斷關鍵字並記住查詢類型
+  if (userText.includes("餐廳")) {
+    userCategoryMap[event.source.userId] = "restaurant";
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "請傳送您的定位，我會幫您查詢附近的餐廳 🍽️",
+    });
+  }
 
-  // ✅ 傳送「定位」查附近餐廳
+  if (userText.includes("飲料") || userText.includes("飲料店")) {
+    userCategoryMap[event.source.userId] = "cafe";
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "請傳送您的定位，我會幫您查詢附近的飲料店 🧋",
+    });
+  }
+
+  if (userText.includes("加油站")) {
+    userCategoryMap[event.source.userId] = "gas_station";
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "請傳送您的定位，我會幫您查詢附近的加油站 ⛽",
+    });
+  }
+
+  // 傳送「定位」查附近餐廳
   if (event.message.type === "location") {
     const lat = event.message.latitude;
     const lng = event.message.longitude;
+    const userId = event.source.userId;
+    const category = userCategoryMap[userId] || "restaurant"; // 預設查餐廳
     const apiKey = process.env.GOOGLE_PLACE_API_KEY;
 
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=1000&type=restaurant&language=zh-TW&key=${apiKey}`;
+    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=1000&type=${category}&language=zh-TW&key=${apiKey}`;
 
     try {
       const response = await axios.get(url);
@@ -50,7 +78,7 @@ async function handleEvent(event) {
       if (!places || places.length === 0) {
         return client.replyMessage(event.replyToken, {
           type: "text",
-          text: "附近找不到餐廳 😢",
+          text: "附近找不到地點 😢",
         });
       }
 
@@ -61,7 +89,7 @@ async function handleEvent(event) {
         const photoRef = place.photos?.[0]?.photo_reference;
         const photoUrl = photoRef
           ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${apiKey}`
-          : "https://i.imgur.com/vNMMLEl.jpg"; // 沒圖用預設圖
+          : "https://i.imgur.com/vNMMLEl.jpg";
 
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
           name + " " + address
@@ -121,24 +149,27 @@ async function handleEvent(event) {
         };
       });
 
+      // ✅ 清除使用者狀態（以免下次混用）
+      delete userCategoryMap[userId];
+
       return client.replyMessage(event.replyToken, {
         type: "flex",
-        altText: "附近餐廳推薦",
+        altText: "附近地點推薦",
         contents: {
           type: "carousel",
           contents: bubbles,
         },
       });
     } catch (error) {
-      console.error("🔴 查詢 Google Place 餐廳錯誤：", error);
+      console.error("查詢 Google Place 錯誤：", error);
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "無法查詢附近餐廳，請稍後再試。",
+        text: "無法查詢附近地點，請稍後再試。",
       });
     }
   }
 
-  // ✅ 關鍵字文字訊息處理
+  // 關鍵字文字訊息處理
   if (event.type !== "message" || event.message.type !== "text") {
     console.log("非文字訊息，略過");
     return Promise.resolve(null);
