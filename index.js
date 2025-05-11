@@ -5,7 +5,6 @@ const axios = require("axios");
 
 dotenv.config();
 
-// ✅ 必須先定義 config 才能用
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
@@ -14,61 +13,63 @@ const config = {
 const app = express();
 const client = new Client(config);
 
-// ✅ middleware 放這裡就好，不要放 use，全交給 webhook 路由處理
+const userCategoryMap = {}; // 暫存查詢類型
+
+// LINE Webhook 入口
 app.post("/webhook", middleware(config), async (req, res) => {
   const events = req.body.events;
   const results = await Promise.all(events.map((event) => handleEvent(event)));
   res.json(results);
 });
 
-const userCategoryMap = {}; // 暫存查詢類型
-
 async function handleEvent(event) {
   const userId = event.source.userId;
 
+  // 用戶文字訊息
   if (event.type === "message" && event.message.type === "text") {
-    const userText = event.message.text;
+    const text = event.message.text;
 
-    if (userText === "餐廳") {
+    if (text === "餐廳") {
       userCategoryMap[userId] = ["restaurant", "cafe"];
       return replyLocationPrompt(event.replyToken, "餐廳（含飲料店）");
     }
-    if (userText === "超商") {
+    if (text === "超商") {
       userCategoryMap[userId] = "convenience_store";
       return replyLocationPrompt(event.replyToken, "超商");
     }
-    if (userText === "加油站") {
+    if (text === "加油站") {
       userCategoryMap[userId] = "gas_station";
       return replyLocationPrompt(event.replyToken, "加油站");
     }
-    if (userText === "景點") {
+    if (text === "景點") {
       userCategoryMap[userId] = "tourist_attraction";
       return replyLocationPrompt(event.replyToken, "景點");
     }
-    if (userText === "藥局") {
+    if (text === "藥局") {
       userCategoryMap[userId] = "pharmacy";
       return replyLocationPrompt(event.replyToken, "藥局");
     }
-    if (userText === "天氣") {
+    if (text === "天氣") {
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "天氣功能尚未啟用 ☁️⛅",
+        text: "天氣功能尚未啟用 ☁️",
       });
     }
 
     return client.replyMessage(event.replyToken, {
       type: "text",
-      text: "請使用主選單查詢 🧭",
+      text: "請使用下方選單查詢 🧭",
     });
   }
 
+  // 使用者傳位置
   if (event.type === "message" && event.message.type === "location") {
     const { latitude, longitude } = event.message;
     const category = userCategoryMap[userId];
     if (!category) {
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "請先透過主選單選擇查詢類型 🙏",
+        text: "請先從主選單選擇查詢項目 🙏",
       });
     }
 
@@ -81,6 +82,7 @@ async function handleEvent(event) {
       allPlaces.push(...(response.data.results || []));
     }
 
+    // 去除重複
     const seen = new Set();
     const places = allPlaces.filter((p) => {
       const id = p.place_id;
@@ -96,21 +98,69 @@ async function handleEvent(event) {
       });
     }
 
-    const reply = places
-      .slice(0, 5)
-      .map((place, idx) => {
-        const name = place.name;
-        const address = place.vicinity || "";
-        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          name
-        )}`;
-        return `${idx + 1}. ${name}\n${address}\n${mapUrl}`;
-      })
-      .join("\n\n");
+    // 做成 Flex card
+    // 做成 Flex card
+    const bubbles = places.slice(0, 5).map((place) => {
+      const name = place.name;
+      const photoRef = place.photos?.[0]?.photo_reference;
+      const lat = place.geometry.location.lat;
+      const lng = place.geometry.location.lng;
+      const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      const photoUrl = photoRef
+        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${process.env.GOOGLE_MAPS_API_KEY}`
+        : "https://via.placeholder.com/400x250?text=No+Image";
 
+      return {
+        type: "bubble",
+        hero: {
+          type: "image",
+          url: photoUrl,
+          size: "full",
+          aspectRatio: "20:13",
+          aspectMode: "cover",
+        },
+        body: {
+          type: "box",
+          layout: "vertical",
+          spacing: "sm",
+          contents: [
+            {
+              type: "text",
+              text: name,
+              weight: "bold",
+              size: "lg",
+              wrap: true,
+            },
+          ],
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          spacing: "sm",
+          contents: [
+            {
+              type: "button",
+              action: {
+                type: "uri",
+                label: "開啟地圖",
+                uri: mapUrl,
+              },
+              style: "primary",
+              color: "#1DB446",
+            },
+          ],
+        },
+      };
+    });
+
+    // ✅ 回傳 Flex Carousel 正確格式
     return client.replyMessage(event.replyToken, {
-      type: "text",
-      text: reply,
+      type: "flex",
+      altText: "這是附近的地點",
+      contents: {
+        type: "carousel",
+        contents: bubbles,
+      },
     });
   }
 
@@ -126,5 +176,5 @@ function replyLocationPrompt(replyToken, label) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
