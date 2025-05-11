@@ -1,211 +1,135 @@
 const express = require("express");
-const axios = require("axios");
-const userCategoryMap = {}; // 使用者選擇查詢類型
-
-require("dotenv").config();
-
 const { Client, middleware } = require("@line/bot-sdk");
-console.log("🧪 TOKEN:", process.env.CHANNEL_ACCESS_TOKEN);
-console.log("🧪 SECRET:", process.env.CHANNEL_SECRET);
+const dotenv = require("dotenv");
+const axios = require("axios");
+
+dotenv.config();
+
+const app = express();
+app.use(express.json());
+
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
 };
 
-const app = express();
 const client = new Client(config);
+app.use(middleware(config));
 
-//app.use(express.json());
-app.post("/webhook", middleware(config), (req, res) => {
-  console.log("收到 webhook：", JSON.stringify(req.body, null, 2));
-  Promise.all(req.body.events.map(handleEvent))
-    .then((result) => res.json(result))
-    .catch((err) => {
-      console.error(" webhook 發生錯誤：", err);
-      res.status(500).end();
-    });
+const userCategoryMap = {}; // 暫存查詢類型
+
+app.post("/webhook", async (req, res) => {
+  const events = req.body.events;
+  const results = await Promise.all(events.map(handleEvent));
+  res.json(results);
 });
 
 async function handleEvent(event) {
-  console.log("收到事件：", JSON.stringify(event, null, 2));
+  const userId = event.source.userId;
 
-  // 測試事件略過
-  if (
-    !event.replyToken ||
-    event.replyToken === "00000000000000000000000000000000"
-  ) {
-    return Promise.resolve(null);
+  // 使用者點選選單文字
+  if (event.type === "message" && event.message.type === "text") {
+    const userText = event.message.text;
+
+    if (userText === "餐廳") {
+      userCategoryMap[userId] = ["restaurant", "cafe"];
+      return replyLocationPrompt(event.replyToken, "餐廳（含飲料店）");
+    }
+    if (userText === "超商") {
+      userCategoryMap[userId] = "convenience_store";
+      return replyLocationPrompt(event.replyToken, "超商");
+    }
+    if (userText === "加油站") {
+      userCategoryMap[userId] = "gas_station";
+      return replyLocationPrompt(event.replyToken, "加油站");
+    }
+    if (userText === "景點") {
+      userCategoryMap[userId] = "tourist_attraction";
+      return replyLocationPrompt(event.replyToken, "景點");
+    }
+    if (userText === "藥局") {
+      userCategoryMap[userId] = "pharmacy";
+      return replyLocationPrompt(event.replyToken, "藥局");
+    }
+    if (userText === "天氣") {
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "天氣功能尚未啟用 ☁️⛅",
+      });
+    }
+
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "請使用主選單查詢 🧭",
+    });
   }
 
-  // ✅ 1. 先處理「定位訊息」
-  if (event.message?.type === "location") {
-    const lat = event.message.latitude;
-    const lng = event.message.longitude;
-    const userId = event.source.userId;
+  // 使用者傳送定位
+  if (event.type === "message" && event.message.type === "location") {
+    const { latitude, longitude } = event.message;
     const category = userCategoryMap[userId];
-
     if (!category) {
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "請先輸入要查什麼類型（例如：餐廳、飲料店、加油站），再傳定位唷 📍",
+        text: "請先透過主選單選擇查詢類型 🙏",
       });
     }
-    const apiKey = process.env.GOOGLE_PLACE_API_KEY;
 
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=1000&type=${category}&language=zh-TW&key=${apiKey}`;
+    const types = Array.isArray(category) ? category : [category];
+    let allPlaces = [];
 
-    try {
+    for (const type of types) {
+      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=1500&type=${type}&language=zh-TW&key=${process.env.GOOGLE_MAPS_API_KEY}`;
       const response = await axios.get(url);
-      const places = response.data.results;
+      allPlaces.push(...(response.data.results || []));
+    }
 
-      if (!places || places.length === 0) {
-        return client.replyMessage(event.replyToken, {
-          type: "text",
-          text: "附近找不到地點 😢",
-        });
-      }
+    // 避免重複
+    const seen = new Set();
+    const places = allPlaces.filter((p) => {
+      const id = p.place_id;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
 
-      const topResults = places.slice(0, 8);
-      const bubbles = topResults.map((place) => {
-        const name = place.name;
-        const address = place.vicinity;
-        const photoRef = place.photos?.[0]?.photo_reference;
-        const photoUrl = photoRef
-          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${apiKey}`
-          : "https://i.imgur.com/vNMMLEl.jpg";
-
-        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          name + " " + address
-        )}`;
-
-        return {
-          type: "bubble",
-          hero: {
-            type: "image",
-            url: photoUrl,
-            size: "full",
-            aspectRatio: "20:13",
-            aspectMode: "cover",
-            action: { type: "uri", uri: mapsUrl },
-          },
-          body: {
-            type: "box",
-            layout: "vertical",
-            contents: [
-              {
-                type: "text",
-                text: name,
-                weight: "bold",
-                size: "md",
-                wrap: true,
-              },
-              {
-                type: "text",
-                text: address,
-                size: "sm",
-                color: "#666666",
-                wrap: true,
-              },
-            ],
-          },
-          footer: {
-            type: "box",
-            layout: "vertical",
-            spacing: "sm",
-            contents: [
-              {
-                type: "button",
-                style: "link",
-                height: "sm",
-                action: { type: "uri", label: "開啟地圖", uri: mapsUrl },
-              },
-            ],
-            flex: 0,
-          },
-        };
-      });
-
-      delete userCategoryMap[userId]; // 清掉使用者查詢狀態
-
-      return client.replyMessage(event.replyToken, {
-        type: "flex",
-        altText: "附近地點推薦",
-        contents: { type: "carousel", contents: bubbles },
-      });
-    } catch (error) {
-      console.error("查詢 Google Place 錯誤：", error);
+    if (places.length === 0) {
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "無法查詢附近地點，請稍後再試。",
+        text: "找不到符合的地點 😢",
       });
     }
-  }
 
-  // ✅ 2. 確保是文字訊息後再處理
-  if (event.type !== "message" || event.message.type !== "text") {
-    console.log("非文字訊息，略過");
-    return Promise.resolve(null);
-  }
+    // 回傳前 5 筆地點
+    const reply = places
+      .slice(0, 5)
+      .map((place, idx) => {
+        const name = place.name;
+        const address = place.vicinity || "";
+        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          name
+        )}`;
+        return `${idx + 1}. ${name}\n${address}\n${mapUrl}`;
+      })
+      .join("\n\n");
 
-  // ✅ 3. 現在可以安全取得文字
-  const userText = event.message.text.trim().toLowerCase();
-
-  // ✅ 地點類型選擇
-  if (userText.includes("餐廳")) {
-    userCategoryMap[event.source.userId] = "restaurant";
     return client.replyMessage(event.replyToken, {
-      type: "text",
-      text: "請傳送您的定位，我會幫您查詢附近的餐廳 🍽️",
-    });
-  }
-  if (userText.includes("飲料") || userText.includes("飲料店")) {
-    userCategoryMap[event.source.userId] = "cafe";
-    return client.replyMessage(event.replyToken, {
-      type: "text",
-      text: "請傳送您的定位，我會幫您查詢附近的飲料店 🧋",
-    });
-  }
-  if (userText.includes("加油站")) {
-    userCategoryMap[event.source.userId] = "gas_station";
-    return client.replyMessage(event.replyToken, {
-      type: "text",
-      text: "請傳送您的定位，我會幫您查詢附近的加油站 ⛽",
-    });
-  }
-
-  // ✅ 其他關鍵字回覆
-  let reply = "我不知道什麼是 " + event.message.text;
-  if (userText.includes("豆花")) {
-    return client.replyMessage(event.replyToken, {
-      type: "image",
-      originalContentUrl: "https://i.imgur.com/0W9cLrn.jpeg",
-      previewImageUrl: "https://i.imgur.com/0W9cLrn.jpeg",
-    });
-  } else if (userText.includes("天氣")) {
-    reply = "今天台中天氣28度！記得防曬☀️";
-  } else if (userText === "你好") {
-    reply = "你好呀，我是慈昀的小助理 🤖";
-  } else if (userText.includes("早安")) {
-    reply = "早安呀 ☀️ 記得吃早餐！";
-  } else if (userText.includes("晚安")) {
-    reply = "晚安呀 🌙 祝你有個好夢";
-  }
-
-  try {
-    await client.replyMessage(event.replyToken, {
       type: "text",
       text: reply,
     });
-    console.log("成功回覆使用者");
-  } catch (error) {
-    console.error("回覆訊息失敗：", error);
-    return Promise.reject(error);
   }
 
   return Promise.resolve(null);
 }
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Bot 已啟動在 port ${port}`);
+function replyLocationPrompt(replyToken, label) {
+  return client.replyMessage(replyToken, {
+    type: "text",
+    text: `請傳送您的位置，我會幫您查詢附近的 ${label} 📍`,
+  });
+}
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
