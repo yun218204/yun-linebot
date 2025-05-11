@@ -6,7 +6,7 @@ const axios = require("axios");
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+app.use(middleware(config));
 
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
