@@ -27,6 +27,7 @@ async function handleEvent(event) {
   const userId = event.source.userId; //取得使用者的 ID
 
   // 用戶文字訊息
+
   if (event.type === "message" && event.message.type === "text") {
     const text = event.message.text; //把使用者傳來的訊息存進text
 
@@ -71,6 +72,23 @@ async function handleEvent(event) {
       return client.replyMessage(event.replyToken, {
         type: "text",
         text: "請先從主選單選擇查詢項目 🙏",
+      });
+    }
+
+    //天氣
+    if (category === "weather") {
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric&lang=zh_tw`;
+      const response = await axios.get(url);
+      const data = response.data;
+
+      const locationName = data.name;
+      const weather = data.weather[0].description;
+      const temp = data.main.temp;
+      const feelsLike = data.main.feels_like;
+
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: `📍 位置：${locationName}\n☁️ 天氣：${weather}\n🌡️ 氣溫：${temp}°C\n🥵 體感：${feelsLike}°C`,
       });
     }
 

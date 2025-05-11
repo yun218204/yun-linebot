@@ -13,7 +13,6 @@ async function setupRichMenu() {
     name: "主選單",
     chatBarText: "請選擇查詢類型",
     areas: [
-      // 第一排
       {
         bounds: { x: 0, y: 0, width: 833, height: 843 },
         action: { type: "message", text: "餐廳" },
@@ -47,7 +46,7 @@ async function setupRichMenu() {
     const richMenuId = await client.createRichMenu(richMenu);
     console.log("✅ Rich Menu created:", richMenuId);
 
-    const imageBuffer = fs.readFileSync("menu.png"); // 確保你的圖為 2500x1686
+    const imageBuffer = fs.readFileSync("menu.png");
     await client.setRichMenuImage(richMenuId, imageBuffer, "image/png");
 
     await client.setDefaultRichMenu(richMenuId);
