@@ -5,29 +5,27 @@ const axios = require("axios");
 
 dotenv.config();
 
-const app = express();
-app.use(middleware(config));
-
+// ✅ 必須先定義 config 才能用
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
 };
 
+const app = express();
 const client = new Client(config);
-app.use(middleware(config));
 
-const userCategoryMap = {}; // 暫存查詢類型
-
-app.post("/webhook", async (req, res) => {
+// ✅ middleware 放這裡就好，不要放 use，全交給 webhook 路由處理
+app.post("/webhook", middleware(config), async (req, res) => {
   const events = req.body.events;
-  const results = await Promise.all(events.map(handleEvent));
+  const results = await Promise.all(events.map((event) => handleEvent(event)));
   res.json(results);
 });
+
+const userCategoryMap = {}; // 暫存查詢類型
 
 async function handleEvent(event) {
   const userId = event.source.userId;
 
-  // 使用者點選選單文字
   if (event.type === "message" && event.message.type === "text") {
     const userText = event.message.text;
 
@@ -64,7 +62,6 @@ async function handleEvent(event) {
     });
   }
 
-  // 使用者傳送定位
   if (event.type === "message" && event.message.type === "location") {
     const { latitude, longitude } = event.message;
     const category = userCategoryMap[userId];
@@ -84,7 +81,6 @@ async function handleEvent(event) {
       allPlaces.push(...(response.data.results || []));
     }
 
-    // 避免重複
     const seen = new Set();
     const places = allPlaces.filter((p) => {
       const id = p.place_id;
@@ -100,7 +96,6 @@ async function handleEvent(event) {
       });
     }
 
-    // 回傳前 5 筆地點
     const reply = places
       .slice(0, 5)
       .map((place, idx) => {
