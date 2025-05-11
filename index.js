@@ -36,6 +36,7 @@ async function handleEvent(event) {
   ) {
     return Promise.resolve(null);
   }
+  const userText = event.message.text.trim().toLowerCase();
   // 判斷關鍵字並記住查詢類型
   if (userText.includes("餐廳")) {
     userCategoryMap[event.source.userId] = "restaurant";
@@ -175,7 +176,6 @@ async function handleEvent(event) {
     return Promise.resolve(null);
   }
 
-  const userText = event.message.text.trim().toLowerCase();
   let reply = "我不知道什麼是 " + event.message.text;
 
   if (userText.includes("豆花")) {
