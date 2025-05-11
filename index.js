@@ -27,8 +27,38 @@ async function handleEvent(event) {
 
   // 用戶文字訊息
   if (event.type === "message" && event.message.type === "text") {
-    const text = event.message.text;
+    const text = event.message.text; //把使用者傳來的訊息存進text
+    if (text.includes("請羞辱我")) {
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "25歲還一事無成，好了啦超可悲",
+      });
+    }
+    if (text.includes("再一次")) {
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "不要以為你有工作你就比較屌，你也不過是薪水操你幾次就會高潮的奴，活到 25，沒錢、沒房、沒方向，唯一有的是拖延症",
+      });
+    }
+    if (text.includes("陳慈昀的罩杯")) {
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "超級大Ｈ拖到地上快破皮",
+      });
+    }
+    if (text.includes("羞辱我")) {
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "你是那種寫在備忘錄裡的目標三年後還在上面發霉發臭的遺願清單，你活著的樣子像是被世界操爛卻還以為自己在頂端，實際上你連被命運操的資格都排不上前十。",
+      });
+    }
 
+    if (text.includes("操")) {
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "操你不是因為討厭你是你活著這件事本身就他媽該操",
+      });
+    }
     if (text === "餐廳") {
       userCategoryMap[userId] = ["restaurant", "cafe"];
       return replyLocationPrompt(event.replyToken, "餐廳（含飲料店）");
