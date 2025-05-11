@@ -78,8 +78,9 @@ async function handleEvent(event) {
       const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric&lang=zh_tw`;
       const response = await axios.get(url);
       const data = response.data;
-
-      const locationName = data.name;
+      const tempMin = data.main.temp_min;
+      const tempMax = data.main.temp_max;
+      const locationName = event.message.address || data.name || "您所在的位置"; //名字顯示用使用者傳的位置
       const weather = data.weather[0].description;
       const temp = data.main.temp;
       const feelsLike = data.main.feels_like;
@@ -129,7 +130,14 @@ async function handleEvent(event) {
               },
               {
                 type: "text",
-                text: `🌡️ 氣溫：${temp}°C / 體感：${feelsLike}°C`,
+                text: `🌡️ 現在溫度：${temp}°C / 體感：${feelsLike}°C`,
+                size: "sm",
+                color: "#555555",
+                wrap: true,
+              },
+              {
+                type: "text",
+                text: `📈 今日溫度：${tempMin}°C ～ ${tempMax}°C`,
                 size: "sm",
                 color: "#555555",
                 wrap: true,
