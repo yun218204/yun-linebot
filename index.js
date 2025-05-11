@@ -52,10 +52,8 @@ async function handleEvent(event) {
       return replyLocationPrompt(event.replyToken, "藥局");
     }
     if (text === "天氣") {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "天氣功能尚未啟用 ☁️",
-      });
+      userCategoryMap[userId] = "weather";
+      return replyLocationPrompt(event.replyToken, "天氣");
     }
 
     return client.replyMessage(event.replyToken, {
