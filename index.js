@@ -29,41 +29,16 @@ app.post("/webhook", middleware(config), (req, res) => {
 async function handleEvent(event) {
   console.log("收到事件：", JSON.stringify(event, null, 2));
 
-  // 避免回覆測試事件
+  // 測試事件略過
   if (
     !event.replyToken ||
     event.replyToken === "00000000000000000000000000000000"
   ) {
     return Promise.resolve(null);
   }
-  const userText = event.message.text.trim().toLowerCase();
-  // 判斷關鍵字並記住查詢類型
-  if (userText.includes("餐廳")) {
-    userCategoryMap[event.source.userId] = "restaurant";
-    return client.replyMessage(event.replyToken, {
-      type: "text",
-      text: "請傳送您的定位，我會幫您查詢附近的餐廳 🍽️",
-    });
-  }
 
-  if (userText.includes("飲料") || userText.includes("飲料店")) {
-    userCategoryMap[event.source.userId] = "cafe";
-    return client.replyMessage(event.replyToken, {
-      type: "text",
-      text: "請傳送您的定位，我會幫您查詢附近的飲料店 🧋",
-    });
-  }
-
-  if (userText.includes("加油站")) {
-    userCategoryMap[event.source.userId] = "gas_station";
-    return client.replyMessage(event.replyToken, {
-      type: "text",
-      text: "請傳送您的定位，我會幫您查詢附近的加油站 ⛽",
-    });
-  }
-
-  // 傳送「定位」查附近餐廳
-  if (event.message.type === "location") {
+  // ✅ 1. 先處理「定位訊息」
+  if (event.message?.type === "location") {
     const lat = event.message.latitude;
     const lng = event.message.longitude;
     const userId = event.source.userId;
@@ -104,10 +79,7 @@ async function handleEvent(event) {
             size: "full",
             aspectRatio: "20:13",
             aspectMode: "cover",
-            action: {
-              type: "uri",
-              uri: mapsUrl,
-            },
+            action: { type: "uri", uri: mapsUrl },
           },
           body: {
             type: "box",
@@ -138,11 +110,7 @@ async function handleEvent(event) {
                 type: "button",
                 style: "link",
                 height: "sm",
-                action: {
-                  type: "uri",
-                  label: "開啟地圖",
-                  uri: mapsUrl,
-                },
+                action: { type: "uri", label: "開啟地圖", uri: mapsUrl },
               },
             ],
             flex: 0,
@@ -150,16 +118,12 @@ async function handleEvent(event) {
         };
       });
 
-      // ✅ 清除使用者狀態（以免下次混用）
-      delete userCategoryMap[userId];
+      delete userCategoryMap[userId]; // 清掉使用者查詢狀態
 
       return client.replyMessage(event.replyToken, {
         type: "flex",
         altText: "附近地點推薦",
-        contents: {
-          type: "carousel",
-          contents: bubbles,
-        },
+        contents: { type: "carousel", contents: bubbles },
       });
     } catch (error) {
       console.error("查詢 Google Place 錯誤：", error);
@@ -170,14 +134,40 @@ async function handleEvent(event) {
     }
   }
 
-  // 關鍵字文字訊息處理
+  // ✅ 2. 確保是文字訊息後再處理
   if (event.type !== "message" || event.message.type !== "text") {
     console.log("非文字訊息，略過");
     return Promise.resolve(null);
   }
 
-  let reply = "我不知道什麼是 " + event.message.text;
+  // ✅ 3. 現在可以安全取得文字
+  const userText = event.message.text.trim().toLowerCase();
 
+  // ✅ 地點類型選擇
+  if (userText.includes("餐廳")) {
+    userCategoryMap[event.source.userId] = "restaurant";
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "請傳送您的定位，我會幫您查詢附近的餐廳 🍽️",
+    });
+  }
+  if (userText.includes("飲料") || userText.includes("飲料店")) {
+    userCategoryMap[event.source.userId] = "cafe";
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "請傳送您的定位，我會幫您查詢附近的飲料店 🧋",
+    });
+  }
+  if (userText.includes("加油站")) {
+    userCategoryMap[event.source.userId] = "gas_station";
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "請傳送您的定位，我會幫您查詢附近的加油站 ⛽",
+    });
+  }
+
+  // ✅ 其他關鍵字回覆
+  let reply = "我不知道什麼是 " + event.message.text;
   if (userText.includes("豆花")) {
     return client.replyMessage(event.replyToken, {
       type: "image",
