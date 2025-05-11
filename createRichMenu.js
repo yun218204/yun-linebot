@@ -42,7 +42,7 @@ async function setupRichMenu() {
       },
     ],
   };
-
+  //測試
   try {
     const richMenuId = await client.createRichMenu(richMenu);
     console.log("✅ Rich Menu created:", richMenuId);

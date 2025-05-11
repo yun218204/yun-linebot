@@ -3,7 +3,7 @@ const { Client, middleware } = require("@line/bot-sdk");
 const dotenv = require("dotenv");
 const axios = require("axios");
 
-dotenv.config();
+dotenv.config(); //會從專案根目錄讀取 .env 檔案把裡面的變數加入到 process.env 中。
 
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
@@ -11,57 +11,28 @@ const config = {
 };
 
 const app = express();
-const client = new Client(config);
+const client = new Client(config); //用剛剛的 config 建立一個 LINE Bot 的客戶端，可以用來傳送訊息、取得用戶資料等。
 
 const userCategoryMap = {}; // 暫存查詢類型
 
 // LINE Webhook 入口
 app.post("/webhook", middleware(config), async (req, res) => {
-  const events = req.body.events;
+  const events = req.body.events; //從 LINE 傳來的 request body 中取出所有事件（每則訊息就是一個事件）。
   const results = await Promise.all(events.map((event) => handleEvent(event)));
   res.json(results);
 });
-
+//events 是陣列 假設有使用者傳了三句話 就是三個事件 三個events
+//event是從events取出來的每個event 單一事件
 async function handleEvent(event) {
-  const userId = event.source.userId;
+  const userId = event.source.userId; //取得使用者的 ID
 
   // 用戶文字訊息
   if (event.type === "message" && event.message.type === "text") {
     const text = event.message.text; //把使用者傳來的訊息存進text
-    if (text.includes("請羞辱我")) {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "25歲還一事無成，好了啦超可悲",
-      });
-    }
-    if (text.includes("再一次")) {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "不要以為你有工作你就比較屌，你也不過是薪水操你幾次就會高潮的奴，活到 25，沒錢、沒房、沒方向，唯一有的是拖延症",
-      });
-    }
-    if (text.includes("陳慈昀的罩杯")) {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "超級大Ｈ拖到地上快破皮",
-      });
-    }
-    if (text.includes("羞辱我")) {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "你是那種寫在備忘錄裡的目標三年後還在上面發霉發臭的遺願清單，你活著的樣子像是被世界操爛卻還以為自己在頂端，實際上你連被命運操的資格都排不上前十。",
-      });
-    }
 
-    if (text.includes("操")) {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "操你不是因為討厭你是你活著這件事本身就他媽該操",
-      });
-    }
     if (text === "餐廳") {
-      userCategoryMap[userId] = ["restaurant", "cafe"];
-      return replyLocationPrompt(event.replyToken, "餐廳（含飲料店）");
+      userCategoryMap[userId] = ["restaurant", "cafe", "beverage", "tea"];
+      return replyLocationPrompt(event.replyToken, "餐廳");
     }
     if (text === "超商") {
       userCategoryMap[userId] = "convenience_store";
@@ -94,8 +65,8 @@ async function handleEvent(event) {
 
   // 使用者傳位置
   if (event.type === "message" && event.message.type === "location") {
-    const { latitude, longitude } = event.message;
-    const category = userCategoryMap[userId];
+    const { latitude, longitude } = event.message; //抓出使用者傳來的位置座標
+    const category = userCategoryMap[userId]; //查看使用者有無選擇類型(之前是設定空的讓使用者輸入文字後會判斷啥類型)
     if (!category) {
       return client.replyMessage(event.replyToken, {
         type: "text",
@@ -103,21 +74,24 @@ async function handleEvent(event) {
       });
     }
 
-    const types = Array.isArray(category) ? category : [category];
+    const types = Array.isArray(category) ? category : [category]; //如果是陣列(一次查詢兩種 例如 餐廳 咖啡廳)就用 不是就改陣列
     let allPlaces = [];
 
     for (const type of types) {
+      //types 是陣列，type 是你從 types 裡「拿出來的每一項」
       const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=1500&type=${type}&language=zh-TW&key=${process.env.GOOGLE_MAPS_API_KEY}`;
       const response = await axios.get(url);
-      allPlaces.push(...(response.data.results || []));
+      allPlaces.push(...(response.data.results || [])); //等於下面兩句
+      // const results = response.data.results || [];
+      // allPlaces.push(...results);
     }
 
-    // 去除重複
+    // 去除重複 怕有些墊被一次歸類在三個類型
     const seen = new Set();
     const places = allPlaces.filter((p) => {
       const id = p.place_id;
-      if (seen.has(id)) return false;
-      seen.add(id);
+      if (seen.has(id)) return false; // 這筆看過了，跳過
+      seen.add(id); // 沒看過，加進 Set
       return true;
     });
 
@@ -130,7 +104,7 @@ async function handleEvent(event) {
 
     // 做成 Flex card
 
-    const bubbles = places.slice(0, 5).map((place) => {
+    const bubbles = places.slice(0, 10).map((place) => {
       const name = place.name;
       const photoRef = place.photos?.[0]?.photo_reference;
       const lat = place.geometry.location.lat;
@@ -183,7 +157,7 @@ async function handleEvent(event) {
       };
     });
 
-    // ✅ 回傳 Flex Carousel 正確格式
+    //  回傳 Flex Carousel 正確格式
     return client.replyMessage(event.replyToken, {
       type: "flex",
       altText: "這是附近的地點",
@@ -200,7 +174,7 @@ async function handleEvent(event) {
 function replyLocationPrompt(replyToken, label) {
   return client.replyMessage(replyToken, {
     type: "text",
-    text: `請傳送您的位置，我會幫您查詢附近的 ${label} 📍`,
+    text: `請傳送您的位置，我會幫您查詢附近的 ${label} !`,
   });
 }
 
