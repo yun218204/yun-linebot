@@ -166,7 +166,7 @@ async function handleEvent(event) {
 
     for (const type of types) {
       //types 是陣列，type 是你從 types 裡「拿出來的每一項」
-      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=1500&type=${type}&language=zh-TW&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=1500&type=${type}&language=zh-TW&key=${process.env.GOOGLE_PLACE_API_KEY}`;
       const response = await axios.get(url);
       allPlaces.push(...(response.data.results || [])); //等於下面兩句
       // const results = response.data.results || [];
