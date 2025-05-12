@@ -61,7 +61,8 @@ async function handleEvent(event) {
       text: "請使用下方選單查詢 🧭",
     });
   }
-  console.log("🔑 Google Maps Key:", process.env.GOOGLE_MAPS_API_KEY);
+  console.log("🔑 Google Maps Key:", process.env.GOOGLE_PLACE_API_KEY);
+
   // 使用者傳位置
   if (event.type === "message" && event.message.type === "location") {
     const { latitude, longitude } = event.message; //抓出使用者傳來的位置座標
