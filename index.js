@@ -86,7 +86,7 @@ async function handleEvent(event) {
       const feelsLike = data.main.feels_like;
       const icon = data.weather[0].icon;
       const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
-
+      console.log("🔑 OpenWeather Key:", process.env.OPENWEATHER_API_KEY);
       let suggestion = "";
       if (weather.includes("雨")) {
         suggestion = "建議攜帶雨具 ☔️";
