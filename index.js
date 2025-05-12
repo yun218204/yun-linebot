@@ -198,7 +198,7 @@ async function handleEvent(event) {
       const lng = place.geometry.location.lng;
       const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
       const photoUrl = photoRef
-        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${process.env.GOOGLE_MAPS_API_KEY}`
+        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${process.env.GOOGLE_PLACE_API_KEY}`
         : "https://via.placeholder.com/400x250?text=No+Image";
 
       return {
