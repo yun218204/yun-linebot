@@ -191,58 +191,59 @@ async function handleEvent(event) {
 
     // 做成 Flex card
 
-    const bubbles = places.slice(0, 10).map((place) => {
-      const name = place.name;
-      const photoRef = place.photos?.[0]?.photo_reference;
-      const lat = place.geometry.location.lat;
-      const lng = place.geometry.location.lng;
-      const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-      const photoUrl = photoRef
-        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${process.env.GOOGLE_PLACE_API_KEY}`
-        : "https://via.placeholder.com/400x250?text=No+Image";
+    const bubbles = places
+      .filter((place) => place.photos?.length > 0) // 過濾沒照片的地點
+      .slice(0, 10)
+      .map((place) => {
+        const name = place.name;
+        const photoRef = place.photos[0].photo_reference; //  拿第一張官方地點照片
+        const lat = place.geometry.location.lat;
+        const lng = place.geometry.location.lng;
+        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+        const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photoRef}&key=${process.env.GOOGLE_PLACE_API_KEY}`;
 
-      return {
-        type: "bubble",
-        hero: {
-          type: "image",
-          url: photoUrl,
-          size: "full",
-          aspectRatio: "20:13",
-          aspectMode: "cover",
-        },
-        body: {
-          type: "box",
-          layout: "vertical",
-          spacing: "sm",
-          contents: [
-            {
-              type: "text",
-              text: name,
-              weight: "bold",
-              size: "lg",
-              wrap: true,
-            },
-          ],
-        },
-        footer: {
-          type: "box",
-          layout: "vertical",
-          spacing: "sm",
-          contents: [
-            {
-              type: "button",
-              action: {
-                type: "uri",
-                label: "開啟地圖",
-                uri: mapUrl,
+        return {
+          type: "bubble",
+          hero: {
+            type: "image",
+            url: photoUrl,
+            size: "full",
+            aspectRatio: "20:13",
+            aspectMode: "cover",
+          },
+          body: {
+            type: "box",
+            layout: "vertical",
+            spacing: "sm",
+            contents: [
+              {
+                type: "text",
+                text: name,
+                weight: "bold",
+                size: "lg",
+                wrap: true,
               },
-              style: "primary",
-              color: "#1DB446",
-            },
-          ],
-        },
-      };
-    });
+            ],
+          },
+          footer: {
+            type: "box",
+            layout: "vertical",
+            spacing: "sm",
+            contents: [
+              {
+                type: "button",
+                action: {
+                  type: "uri",
+                  label: "開啟地圖",
+                  uri: mapUrl,
+                },
+                style: "primary",
+                color: "#1DB446",
+              },
+            ],
+          },
+        };
+      });
 
     //  回傳 Flex Carousel 正確格式
     return client.replyMessage(event.replyToken, {
