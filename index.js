@@ -26,6 +26,7 @@ app.post("/webhook", middleware(config), async (req, res) => {
 async function handleEvent(event) {
   const userId = event.source.userId; //取得使用者的 ID
 
+  console.log("👤 LINE 使用者 ID:", userId);
   // 用戶文字訊息
 
   if (event.type === "message" && event.message.type === "text") {
